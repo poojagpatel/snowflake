@@ -1,0 +1,32 @@
+{
+    "time": "2024-04-23",
+    "city": {
+      "id": 5128581,
+      "name": "New York",
+      "country": "US",
+      "coord": {
+        "lat": 40.7128,
+        "lon": -74.0060
+      }
+    },
+    "clouds": {
+      "all": 20
+    },
+    "main": {
+      "temp": 15.0,
+      "temp_min": 8,
+      "temp_max": 18
+    },
+    "weather": [
+      {
+        "main": "Clouds",
+        "description": "Partly Cloudy",
+        "icon": "02d"
+      }
+    ],
+    "wind": {
+      "deg": 315,
+      "speed": 10
+    }
+}
+  
