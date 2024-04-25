@@ -64,8 +64,6 @@ show file formats;
 
 select get_ddl('file_format', 'CSV_FILE_FORMAT');
 
-
-
 ------------------------------------------------------------
 -- stages
 -- create internal stage using web ui
@@ -87,4 +85,75 @@ FORCE = TRUE;
 delete from customer_parquet;
 
 
+
+------------------------------------------------------------
+-- pipes
+-- following is not working
+create or replace pipe MY_DB_08.MY_SCHEMA_08.MY_PIPE auto_ingest=false comment='first pipe to load small chunk of data' as copy into MY_DB_08.MY_SCHEMA_08.customer_csv
+    from @MY_DB_08.MY_SCHEMA_08.my_stg/csv
+    pattern = 'ch-08*'
+    ON_ERROR = CONTINUE
+    file_format = (
+        type=csv
+        skip_header = 1
+        );
+
+show pipes;
+select get_ddl('pipe', 'my_pipe');
+
+select SYSTEM$PIPE_STATUS('my_pipe');
+
+
+
+------------------------------------------------------------
+-- stream
+
+create or replace stream customer_stream
+on table customer_csv;
+
+select * from customer_csv;
+
+copy into customer_csv
+from @my_stg/csv/ch-08_customer_1.csv
+on_error = continue
+file_format = (type=csv);
+
+select * from customer_stream;
+
+delete from customer_csv where cust_key=60006;
+
+update customer_csv 
+set address = 'this is updated address'
+where cust_key=60009;
+
+show streams;
+select get_ddl('stream', 'customer_stream');
+
+
+
+------------------------------------------------------------
+-- task
+
+create or replace task my_task
+    warehouse = compute_wh
+    schedule = '5 minute'
+as select current_date;
+
+
+
+
+------------------------------------------------------------
+-- rough
+select * from  snowflake_sample_data.tpch_sf1.customer limit 10 offset 10;
+
+select 
+    c_custkey::string c_custkey,
+    c_name::string c_name,
+    c_address::string c_address,
+    c_nationkey::string c_nationkey,
+    c_phone::string c_phone,
+    c_acctbal::string c_acctbal,
+    c_mktsegment::string c_mktsegment,
+    c_comment
+from snowflake_sample_data.tpch_sf1.customer limit 10 offset 10;
 
