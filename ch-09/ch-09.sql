@@ -102,7 +102,54 @@ remove @%item/ch-09/;
 --------------------------------------------------------------
 
 -- Load and query data using from table stage
-create or replace table customer_parquet_ff(
+-- important to specify file format during table creation for unnamed stages
+create or replace table customer_parquet(
     v_data variant 
 )
 stage_file_format = (type = parquet);
+
+select * from customer_parquet;
+remove @%customer_parquet;
+list @%customer_parquet;
+-----------------
+
+-- querying data using $ notation - used when data need to be queried on a file etc.
+-- for any semi structured data $1 is the only way to access all the columns
+
+select 
+    metadata$filename
+    , metadata$file_row_number
+    , $1:C_CUSTKEY::varchar
+    , $1:C_NAME::varchar
+    , $1:C_ACCTBAL::decimal(10,2)
+    , $1:C_ADDRESS::varchar
+    , $1:C_PHONE::varchar
+    , $1:C_NATIONKEY::varchar
+    , $1:C_MKTSEGMENT::varchar
+    , $1:C_COMMENT::varchar
+from @%customer_parquet;
+
+copy into customer_parquet 
+from @%customer_parquet;
+
+select * from customer_parquet;
+
+-- once data is loaded, you can see the load_history table to see the history
+-- if you try to load the same file again and again, it will not load the data
+-- copy + tables have metadata which remembers last 64 days of data laod history
+-- you can use 'Force = True | False', to reload the same data file
+-- by default the Force flag is False
+
+copy into customer_parquet 
+from @%customer_parquet
+force = True;
+
+
+-- copy history table
+select * from snowflake.account_usage.copy_history limit 10;
+
+-- load history table
+select * from snowflake.account_usage.load_history limit 10;
+
+-- stages - does not show unnamed stages
+select * from snowflake.account_usage.stages limit 10;
