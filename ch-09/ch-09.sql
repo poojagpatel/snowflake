@@ -63,23 +63,26 @@ select
 from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF100TCL.ITEM limit 10;
 
 create table my_db_09.my_schema_09.item (
-    I_ITEM_SK integer, 
-    I_ITEM_ID string, 
-    I_ITEM_DESC string,
-    I_CURRENT_PRICE decimal, 
-    I_WHOLESALE_COST decimal, 
-    I_CLASS_ID integer, 
-    I_CLASS string, 
-    I_CATEGORY_ID integer, 
-    I_CATEGORY string, 
-    I_MANUFACT_ID integer, 
-    I_MANUFACT string, 
-    I_SIZE string,  
-    I_COLOR string, 
-    I_UNITS string, 
-    I_CONTAINER string, 
-    I_PRODUCT_NAME string
+    I_ITEM_SK varchar, 
+    I_ITEM_ID varchar, 
+    I_ITEM_DESC varchar,
+    I_CURRENT_PRICE varchar, 
+    I_WHOLESALE_COST varchar, 
+    I_CLASS_ID varchar, 
+    I_CLASS varchar, 
+    I_CATEGORY_ID varchar, 
+    I_CATEGORY varchar, 
+    I_MANUFACT_ID varchar, 
+    I_MANUFACT varchar, 
+    I_SIZE varchar,  
+    I_COLOR varchar, 
+    I_UNITS varchar, 
+    I_CONTAINER varchar, 
+    I_PRODUCT_NAME varchar
 );
+
+drop table item;
+
 
 select * from item;
 
@@ -144,7 +147,6 @@ copy into customer_parquet
 from @%customer_parquet
 force = True;
 
-
 -- copy history table
 select * from snowflake.account_usage.copy_history limit 10;
 
@@ -153,3 +155,110 @@ select * from snowflake.account_usage.load_history limit 10;
 
 -- stages - does not show unnamed stages
 select * from snowflake.account_usage.stages limit 10;
+
+--------------------------------------------------------------
+-- file format and copy command
+
+create or replace file format my_parquet_ff type = 'parquet';
+create or replace file format my_csv_ff type = 'csv' SKIP_HEADER = 1;
+create or replace file format my_json_ff type = 'json';
+
+show file formats;
+
+-- explicitly specifying flie format while creating stage when you want to enforce type of files in the stage
+create or replace stage stg_csv
+file_format = my_csv_ff
+comment = 'stage will use csv file format';
+
+create or replace stage stg_none
+comment = 'no file format attached';
+
+list @stg_csv;
+list @stg_none;
+select * from @stg_csv/ch-09_customer.parquet;
+select * from @stg_csv/item.csv;
+
+-- copy using stage where file format is attached
+copy into item
+from @stg_csv;
+
+-- copy using stage where file format is not attached
+copy into item
+from @stg_none
+file_format = (format_name = my_csv_ff);
+
+select * from item;
+
+
+--------------------------------------------------------------
+-- file format and copy command
+
+-- Query stage
+
+create or replace table my_customer (
+    cust_key number(38,0),
+    name varchar(30),
+    address varchar,
+    nation_key number(38,0),
+    phone varchar,
+    account_balance number(12,2),
+    market_segment varchar,
+    comment varchar
+);
+
+select * from my_customer;
+
+create or replace stage my_stg
+file_format = my_parquet_ff
+comment = 'stage will use parquet file format';
+
+list @my_stg/my_data;
+
+select 
+    metadata$filename
+    , metadata$file_row_number
+    , $1:C_CUSTKEY::varchar
+    , $1:C_NAME::varchar
+    , $1:C_ACCTBAL::decimal(10,2)
+    , $1:C_ADDRESS::varchar
+    , $1:C_PHONE::varchar
+    , $1:C_NATIONKEY::varchar
+    , $1:C_MKTSEGMENT::varchar
+    , $1:C_COMMENT::varchar
+from @my_stg/my_data/;
+
+
+--------------------------------------------------------------
+-- file pattern can be used to copy data from the stage
+
+copy into t1
+from @%t1/region/state/city/2024/04/27/
+files = ('mydata1.csv', 'mydata2.csv');
+
+copy into t1
+from @%t1/region/state/city/2024/04/27/
+pattern= '.*mydata[^[0-9]{1,3}$$].csv';
+
+copy into t1
+from @%t1/region/state/city/2024/04/27/
+files = ('mydata1.csv', 'mydata2.csv');
+
+
+list @stg_csv;
+
+select $1, $2, $3 from @stg_csv;
+
+-- check for erroneous files
+copy into item
+from @stg_csv
+validation_mode = 'RETURN_ERRORS';
+
+
+-- check handful rows before loading as dry run
+copy into item
+from @stg_csv
+validation_mode = 'RETURN_5_ROWS';
+
+
+
+
